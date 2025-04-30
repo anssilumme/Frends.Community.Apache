@@ -1,8 +1,14 @@
-﻿using System.ComponentModel;
+﻿using System.Collections.Generic;
+using System;
+using System.ComponentModel;
+using System.IO;
+using System.Text.Json;
 using System.Threading;
-using Microsoft.CSharp; // You can remove this if you don't need dynamic type in .NET Standard frends Tasks
+using Microsoft.CSharp;
+using Frends.Community.Apache.ParquetToJson.Definitions;
+using Parquet;
+using Parquet.Data;
 
-#pragma warning disable 1591
 
 namespace Frends.Community.Apache.ParquetToJson
 {
@@ -16,24 +22,75 @@ namespace Frends.Community.Apache.ParquetToJson
         /// <param name="options">Define if repeated multiple times. </param>
         /// <param name="cancellationToken"></param>
         /// <returns>{string Replication} </returns>
-        public static Result ParquetToJson(Parameters input, [PropertyTab] Options options, CancellationToken cancellationToken)
+        public static Result ConvertParquetToJson([PropertyTab] Input input, [PropertyTab] Output output, CancellationToken cancellationToken)
         {
-            var repeats = new string[options.Amount];
-
-            for (var i = 0; i < options.Amount; i++)
+            try
             {
-                // It is good to check the cancellation token somewhere you spend lot of time, e.g. in loops.
-                cancellationToken.ThrowIfCancellationRequested();
+                var rows = GetParquetRows(Path.Combine(input.Directory, input.FileName));
 
-                repeats[i] = input.Message;
+                using (var fileStream = File.OpenWrite(Path.Combine(output.Directory, output.FileName)))
+                {
+                    JsonSerializer.SerializeAsync(fileStream, rows, new JsonSerializerOptions { WriteIndented = true });
+                }
+
+                return new Result()
+                {
+                    Success = true,
+                    StatusMessage = String.Empty,
+                    FileInfo = new FileInfo(Path.Combine(output.Directory, output.FileName))
+                };
             }
-
-            var output = new Result
+            catch (Exception e)
             {
-                Replication = string.Join(options.Delimiter, repeats)
-            };
+                return new Result()
+                {
+                    Success = false,
+                    StatusMessage = e.Message,
+                    FileInfo = null
+                };
+            }
+        }
 
-            return output;
+        internal static async IAsyncEnumerable<Dictionary<string, object?>> GetParquetRows(string parquetFilePath)
+        {
+            using (Stream fileStream = File.OpenRead(parquetFilePath))
+            {
+                using (ParquetReader parquetReader = await ParquetReader.CreateAsync(fileStream, new ParquetOptions { TreatByteArrayAsString = true }))
+                {
+                    var dataFields = parquetReader.Schema.GetDataFields();
+
+                    for (var i = 0; i < parquetReader.RowGroupCount; i++)
+                    {
+                        using (ParquetRowGroupReader rowGroupReader = parquetReader.OpenRowGroupReader(i))
+                        {
+                            var dataColumns = new List<DataColumn>(dataFields.Length);
+
+                            foreach (var dataField in dataFields)
+                            {
+                                var dataColumn = await rowGroupReader.ReadColumnAsync(dataField);
+                                dataColumns.Add(dataColumn);
+                            }
+
+                            for (var j = 0; j < rowGroupReader.RowCount; j++)
+                            {
+                                var row = new Dictionary<string, object?>();
+
+                                for (var k = 0; k < dataFields.Length; k++)
+                                {
+                                    var dataField = dataFields[k];
+                                    var dataColumn = dataColumns[k];
+
+                                    var columnData = dataColumn.Data.GetValue(j);
+
+                                    row.Add(dataField.Name, columnData);
+                                }
+
+                                yield return row;
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

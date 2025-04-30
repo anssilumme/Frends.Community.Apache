@@ -1,7 +1,7 @@
 ﻿{
 	"Tasks": [
 		{
-			"TaskMethod": "Frends.Community.Apache.ParquetToJson.ParquetToJsonTask.ParquetToJson"
+			"TaskMethod": "Frends.Community.Apache.ParquetToJson.ParquetToJsonTask.ConvertParquetToJson"
 		}
 	]
 }
