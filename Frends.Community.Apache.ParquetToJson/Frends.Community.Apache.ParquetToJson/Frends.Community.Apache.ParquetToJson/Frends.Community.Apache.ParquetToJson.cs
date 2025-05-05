@@ -8,6 +8,8 @@ using Microsoft.CSharp;
 using Frends.Community.Apache.ParquetToJson.Definitions;
 using Parquet;
 using Parquet.Data;
+using System.Threading.Tasks;
+using System.Reflection;
 
 
 namespace Frends.Community.Apache.ParquetToJson
@@ -22,7 +24,7 @@ namespace Frends.Community.Apache.ParquetToJson
         /// <param name="options">Define if repeated multiple times. </param>
         /// <param name="cancellationToken"></param>
         /// <returns>{string Replication} </returns>
-        public static Result ConvertParquetToJson([PropertyTab] Input input, [PropertyTab] Output output, CancellationToken cancellationToken)
+        public static async Task<Result> ConvertParquetToJson([PropertyTab] Input input, [PropertyTab] Output output, CancellationToken cancellationToken)
         {
             try
             {
@@ -30,14 +32,20 @@ namespace Frends.Community.Apache.ParquetToJson
 
                 using (var fileStream = File.OpenWrite(Path.Combine(output.Directory, output.FileName)))
                 {
-                    JsonSerializer.SerializeAsync(fileStream, rows, new JsonSerializerOptions { WriteIndented = true });
+                    await JsonSerializer.SerializeAsync(fileStream, rows, new JsonSerializerOptions { WriteIndented = true });
                 }
+
+                var fileInfo = new FileInfo(Path.Combine(output.Directory, output.FileName));
 
                 return new Result()
                 {
                     Success = true,
                     StatusMessage = String.Empty,
-                    FileInfo = new FileInfo(Path.Combine(output.Directory, output.FileName))
+                    DirectoryName = fileInfo.DirectoryName,
+                    IsReadOnly = fileInfo.IsReadOnly,
+                    Length = fileInfo.Length,
+                    FileName = fileInfo.Name,
+                    FullPath = System.IO.Path.Combine(fileInfo.DirectoryName, fileInfo.Name)
                 };
             }
             catch (Exception e)
@@ -46,7 +54,11 @@ namespace Frends.Community.Apache.ParquetToJson
                 {
                     Success = false,
                     StatusMessage = e.Message,
-                    FileInfo = null
+                    DirectoryName = null,
+                    IsReadOnly = null,
+                    Length = 0,
+                    FileName = null,
+                    FullPath = null
                 };
             }
         }

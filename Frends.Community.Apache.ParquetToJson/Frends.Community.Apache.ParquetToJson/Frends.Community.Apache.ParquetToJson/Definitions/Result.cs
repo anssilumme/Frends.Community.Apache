@@ -18,8 +18,29 @@ namespace Frends.Community.Apache.ParquetToJson.Definitions
         public string StatusMessage { get; set; }
 
         /// <summary>
-        /// FileInfo -object of the output JSON -file.
+        /// Output directory name.
         /// </summary>
-        public FileInfo? FileInfo { get; set; }
+        public string DirectoryName { get; set; }
+
+        /// <summary>
+        /// If the output file is read only or could not be found.
+        /// </summary>
+        public bool? IsReadOnly { get; set; }
+
+        /// <summary>
+        /// The size of the output file in bytes.
+        /// </summary>
+        public Int64 Length { get; set; }
+
+        /// <summary>
+        /// Name of the output file.
+        /// </summary>
+        public string FileName { get; set; }
+
+        /// <summary>
+        /// Full path to output file.
+        /// </summary>
+        public string FullPath { get; set; }
+
     }
 }
